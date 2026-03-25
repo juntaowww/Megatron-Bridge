@@ -121,6 +121,18 @@ class MixedPrecisionConfig:
         if ddp_config is not None:
             ddp_config = update_config_with_precision_overrides(self, ddp_config)
 
+            # reduce_scatter_with_fp32_accumulation is designed as a replacement for
+            # grad_reduce_in_fp32: it communicates in lower precision and accumulates
+            # locally in FP32. Having both enabled simultaneously causes the all-to-all
+            # to send FP32 data (2x volume) with no benefit, leading to severe slowdowns.
+            if getattr(ddp_config, "reduce_scatter_with_fp32_accumulation", False) and ddp_config.grad_reduce_in_fp32:
+                ddp_config.grad_reduce_in_fp32 = False
+                logging.warning(
+                    "Setting grad_reduce_in_fp32=False because reduce_scatter_with_fp32_accumulation=True. "
+                    "These two options are mutually exclusive: reduce_scatter_with_fp32_accumulation already "
+                    "handles FP32 accumulation locally after communicating in lower precision."
+                )
+
 
 def update_config_with_precision_overrides(mixed_precision_config: MixedPrecisionConfig, config):
     """Update a config object with precision settings from mixed_precision_config.

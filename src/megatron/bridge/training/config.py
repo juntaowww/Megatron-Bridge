@@ -1450,6 +1450,7 @@ class ConfigContainer(Container):
         _validate_and_sync_distributed_optimizer_settings(self)
         _validate_mixed_precision_consistency(self)
         _validate_fine_grained_activation_offloading(self)
+        _validate_ddp_reduce_scatter_fp32_accumulation(self)
 
         # CUDA graph scope validation: check_for_nan_in_loss must be disabled with full_iteration graph
         if self.model.cuda_graph_impl == "local" and CudaGraphScope.full_iteration in self.model.cuda_graph_scope:
@@ -1959,3 +1960,28 @@ def _validate_fine_grained_activation_offloading(config: ConfigContainer) -> Non
                 "For fine-grained activation offloading with TE >= 2.10.0, "
                 "NVTE_CPU_OFFLOAD_V1 environment variable should be set to 1 to avoid offloading weights."
             )
+
+
+def _validate_ddp_reduce_scatter_fp32_accumulation(config: ConfigContainer) -> None:
+    """Validate that reduce_scatter_with_fp32_accumulation and grad_reduce_in_fp32 are not both enabled.
+
+    reduce_scatter_with_fp32_accumulation is designed as a replacement for grad_reduce_in_fp32:
+    it communicates gradients in lower precision (e.g. BF16) via all-to-all and accumulates
+    locally in FP32. When grad_reduce_in_fp32 is also True, the gradient buffers are allocated
+    in FP32, causing the all-to-all to transfer FP32 data (doubling communication volume)
+    with no numerical benefit, leading to severe performance degradation.
+
+    Args:
+        config: The configuration container to validate.
+
+    Raises:
+        ValueError: If both flags are enabled simultaneously.
+    """
+    ddp_cfg = config.ddp
+    if ddp_cfg.reduce_scatter_with_fp32_accumulation and ddp_cfg.grad_reduce_in_fp32:
+        raise ValueError(
+            "ddp.reduce_scatter_with_fp32_accumulation=True is incompatible with "
+            "ddp.grad_reduce_in_fp32=True. reduce_scatter_with_fp32_accumulation already handles "
+            "FP32 accumulation locally after communicating in lower precision; enabling "
+            "grad_reduce_in_fp32 simultaneously doubles communication volume with no benefit."
+        )
