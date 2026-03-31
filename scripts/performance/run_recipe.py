@@ -26,6 +26,7 @@ from utils.datasets import (
     create_rp2_dataset_config,
     create_squad_dataset_config,
 )
+from utils.overrides import set_cli_overrides
 from utils.utils import get_library_recipe
 
 from megatron.bridge.utils.common_utils import get_rank_safe
@@ -179,7 +180,7 @@ def main():
 
     # Parse known args and capture unknown ones for config overrides
     parser = parse_cli_args()
-    args, _ = parser.parse_known_args()
+    args, cli_overrides = parser.parse_known_args()
 
     recipe = get_library_recipe(
         model_family_name=args.model_family_name,
@@ -188,6 +189,7 @@ def main():
         wandb_experiment_name=args.wandb_experiment_name,
     )
 
+    recipe = set_cli_overrides(recipe, cli_overrides)
     recipe = set_user_overrides(recipe, args)
 
     # Log final configuration
