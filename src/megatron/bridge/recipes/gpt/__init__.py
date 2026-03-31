@@ -11,3 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from .gpt3_175b import gpt3_175b_pretrain_config
+
+__all__ = [
+    "gpt3_175b_pretrain_config",
+]
