@@ -132,6 +132,7 @@ def slurm_executor(
     srun_args = custom_srun_args.copy() + [
         "--mpi=pmix",
         "--no-container-mount-home",
+        "--no-container-entrypoint",
         "--container-writable",  # Required on clusters using Enroot defaults, where ENROOT_ROOTFS_WRITABLE=no.
     ]
 
@@ -200,7 +201,7 @@ def slurm_executor(
         container_image=container_image,
         container_mounts=mounts,
         env_vars=perf_env,
-        container_env=sorted(perf_env.keys()),
+        container_env=None,
         srun_args=srun_args,
         time=time_limit,
         mem="0",
